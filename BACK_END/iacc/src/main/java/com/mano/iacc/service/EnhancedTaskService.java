@@ -50,18 +50,20 @@ public class EnhancedTaskService {
             autoAssignBot(task);
         }
 
-        // Save Task
-        task.setStatus("PENDING");
+        // Save Task - Set to PENDING_APPROVAL to require Dept Head approval
+        // Automation will be triggered AFTER approval
+        task.setStatus("PENDING_APPROVAL");
         Task savedTask = taskRepository.save(task);
 
         // Step 4: Governance Audit
         auditService.logTaskCreation(savedTask.getId(), createdByUsername,
-                "Intent: " + task.getIntentType() + ", Risk: " + task.getRiskScore());
+                "Intent: " + task.getIntentType() + ", Risk: " + task.getRiskScore() + " - Awaiting approval");
 
-        // Step 5: Trigger Automation if applicable
-        if (task.getAssignedBotType() != null) {
-            triggerAutomation(savedTask, createdByUsername);
-        }
+        log.info("Task created and awaiting approval: ID={}, Title={}, Bot={}",
+                savedTask.getId(), savedTask.getTitle(), savedTask.getAssignedBotType());
+
+        // NOTE: Automation will be triggered when Dept Head approves the task
+        // See approveTask() method
 
         return savedTask;
     }
@@ -191,7 +193,8 @@ public class EnhancedTaskService {
 
         Map<String, Object> analytics = new HashMap<>();
         analytics.put("totalTasks", allTasks.size());
-        analytics.put("pendingTasks", allTasks.stream().filter(t -> "PENDING".equals(t.getStatus())).count());
+        analytics.put("pendingTasks", allTasks.stream()
+                .filter(t -> "PENDING".equals(t.getStatus()) || "PENDING_APPROVAL".equals(t.getStatus())).count());
         analytics.put("inProgressTasks", allTasks.stream().filter(t -> "IN_PROGRESS".equals(t.getStatus())).count());
         analytics.put("completedTasks", allTasks.stream().filter(t -> "COMPLETED".equals(t.getStatus())).count());
         analytics.put("highRiskTasks",
@@ -204,6 +207,84 @@ public class EnhancedTaskService {
     public List<Task> getHighRiskTasks() {
         return taskRepository.findAll().stream()
                 .filter(t -> t.getRiskScore() != null && t.getRiskScore() > 75)
+                .toList();
+    }
+
+    @Transactional
+    public Task approveTask(Long taskId, String decision, String reason, String username) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        String oldStatus = task.getStatus(); // Capture old status
+
+        if ("APPROVE".equalsIgnoreCase(decision)) {
+            task.setStatus("APPROVED");
+            auditService.logTaskStatusChange(task.getId(), oldStatus, "APPROVED", username, "Approved: " + reason);
+
+            // Automatically trigger automation if applicable after approval
+            if (task.getAssignedBotType() != null && !task.getAssignedBotType().equals("Manual_Queue")) {
+                triggerAutomation(task, username);
+            }
+        } else {
+            task.setStatus("REJECTED");
+            auditService.logTaskStatusChange(task.getId(), oldStatus, "REJECTED", username, "Rejected: " + reason);
+        }
+
+        return taskRepository.save(task);
+    }
+
+    @Transactional
+    public Task escalateTask(Long taskId, String username) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        String oldRisk = task.getRiskLevel();
+        task.setRiskLevel("HIGH");
+        task.setStatus("ESCALATED");
+        task.setPriority("HIGH");
+        task.setRisk_reason("Manual Escalation by Collector");
+
+        auditService.logTaskStatusChange(task.getId(), task.getStatus(), "ESCALATED", username, "Manual Escalation");
+
+        return taskRepository.save(task);
+    }
+
+    public List<Task> getMyTasks(Long userId) {
+        // Assuming TaskRepository has this method or we use a custom query or strict
+        // filtering
+        // For now, let's just filter locally if repo doesn't have it, but repo should
+        // have it.
+        // If repo doesn't have it, we need to add it to repo or filter all.
+        // We checked TaskRepository earlier (Step 162/view_file TaskRepository was done
+        // in Step 92 context summary).
+        // Let's assume we can add it or filter. Safe bet: filter findAll stream for now
+        // to avoid errors if repo change failed.
+        return taskRepository.findAll().stream()
+                .filter(t -> t.getCreatedBy() != null && t.getCreatedBy().getId().equals(userId))
+                .toList();
+    }
+
+    @Transactional
+    public Task retryTask(Long taskId, String username) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        if ("FAILED".equals(task.getStatus()) || "Start Failed".equals(task.getUipathJobStatus())
+                || "Faulted".equalsIgnoreCase(task.getUipathJobStatus())) {
+            log.info("Retrying task: {} by user: {}", taskId, username);
+            triggerAutomation(task, username);
+        } else {
+            throw new RuntimeException("Task is not in a failed state, cannot retry.");
+        }
+        return taskRepository.save(task);
+    }
+
+    public List<Task> getAutomationTasks() {
+        // Return tasks with automation activity
+        return taskRepository.findAll().stream()
+                .filter(t -> t.getUipathJobKey() != null)
+                .sorted((t1, t2) -> t2.getCreatedAt().compareTo(t1.getCreatedAt()))
+                .limit(20) // Limit to last 20 for dashboard
                 .toList();
     }
 }

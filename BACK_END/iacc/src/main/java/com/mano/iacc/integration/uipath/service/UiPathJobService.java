@@ -1,6 +1,10 @@
 package com.mano.iacc.integration.uipath.service;
 
 import com.mano.iacc.integration.uipath.config.UiPathProperties;
+import com.mano.iacc.integration.uipath.dto.StartJobRequest;
+import com.mano.iacc.integration.uipath.dto.StartJobResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -8,6 +12,10 @@ import org.springframework.web.client.RestTemplate;
 @Service
 public class UiPathJobService {
 
+  @org.springframework.beans.factory.annotation.Value("${uipath.folder.id}")
+  private String folderId;
+
+  private static final Logger logger = LoggerFactory.getLogger(UiPathJobService.class);
   private final UiPathAuthService authService;
   private final UiPathProperties props;
   private final RestTemplate restTemplate = new RestTemplate();
@@ -19,61 +27,66 @@ public class UiPathJobService {
   }
 
   public String startJob(String releaseKey) {
+    try {
+      String token = authService.getAccessToken();
 
-    String token = authService.getAccessToken();
+      HttpHeaders headers = new HttpHeaders();
+      headers.setBearerAuth(token);
+      headers.setContentType(MediaType.APPLICATION_JSON);
 
-    HttpHeaders headers = new HttpHeaders();
-    headers.setBearerAuth(token);
-    headers.setContentType(MediaType.APPLICATION_JSON);
+      if (folderId != null && !folderId.isEmpty()) {
+        headers.set("X-UIPATH-OrganizationUnitId", folderId);
+      }
 
-    String payload = """
-        {
-          "startInfo": {
-            "ReleaseKey": "%s",
-            "Strategy": "All"
-          }
-        }
-        """.formatted(releaseKey);
+      StartJobRequest requestDto = new StartJobRequest();
+      requestDto.startInfo = new StartJobRequest.StartInfo(releaseKey);
+      // Ensure strategy matches cloud requirements
+      requestDto.startInfo.Strategy = "ModernJobsCount";
+      requestDto.startInfo.JobsCount = 1;
 
-    HttpEntity<String> entity = new HttpEntity<>(payload, headers);
+      HttpEntity<StartJobRequest> entity = new HttpEntity<>(requestDto, headers);
 
-    // Call StartJobs API
-    String url = props.getOrchestratorUrl() + "/odata/Jobs/UiPath.Server.Configuration.OData.StartJobs";
-    ResponseEntity<String> response = restTemplate.postForEntity(
-        url,
-        entity,
-        String.class);
+      String url = props.getOrchestratorUrl() + "/odata/Jobs/UiPath.Server.Configuration.OData.StartJobs";
+      logger.info("Starting UiPath Job with ReleaseKey: {}", releaseKey);
 
-    // Rudimentary parsing for ID (In a real app, use Jackson/DTOs)
-    // Response format: { "value": [ { "Key": "GUID", ... } ] }
-    String body = response.getBody();
-    if (body != null && body.contains("\"Key\":\"")) {
-      int start = body.indexOf("\"Key\":\"") + 7;
-      int end = body.indexOf("\"", start);
-      return body.substring(start, end);
+      ResponseEntity<StartJobResponse> response = restTemplate.postForEntity(
+          url,
+          entity,
+          StartJobResponse.class);
+
+      if (response.getBody() != null && response.getBody().getValue() != null
+          && !response.getBody().getValue().isEmpty()) {
+        String jobKey = response.getBody().getValue().get(0).getKey();
+        logger.info("Job Started Successfully. Job Key: {}", jobKey);
+        return jobKey;
+      }
+    } catch (Exception e) {
+      logger.error("Failed to start UiPath Job", e);
     }
     return null;
   }
 
   public String getJobStatus(String jobKey) {
-    String token = authService.getAccessToken();
-    HttpHeaders headers = new HttpHeaders();
-    headers.setBearerAuth(token);
-    HttpEntity<Void> entity = new HttpEntity<>(headers);
-
-    String url = props.getOrchestratorUrl() + "/odata/Jobs(" + jobKey + ")";
     try {
-      ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-      String body = response.getBody();
-      // JSON: { "Key": "...", "State": "Success", ... }
-      if (body != null && body.contains("\"State\":\"")) {
-        int start = body.indexOf("\"State\":\"") + 9;
-        int end = body.indexOf("\"", start);
-        return body.substring(start, end);
+      String token = authService.getAccessToken();
+      HttpHeaders headers = new HttpHeaders();
+      headers.setBearerAuth(token);
+
+      HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+      String url = props.getOrchestratorUrl() + "/odata/Jobs(" + jobKey + ")";
+      ResponseEntity<StartJobResponse.JobDto> response = restTemplate.exchange(
+          url,
+          HttpMethod.GET,
+          entity,
+          StartJobResponse.JobDto.class);
+
+      if (response.getBody() != null) {
+        return response.getBody().getState();
       }
-      return "Unknown";
     } catch (Exception e) {
-      return "Error";
+      logger.error("Failed to get job status for Key: " + jobKey, e);
     }
+    return "Unknown";
   }
 }

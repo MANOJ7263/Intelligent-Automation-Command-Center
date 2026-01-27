@@ -9,11 +9,64 @@ import { taskService } from '@/services/api';
 import { Loader2, Send, AlertTriangle, FileText, CheckCircle2, Bot, BrainCircuit } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
+const MyTaskList = () => {
+    const [tasks, setTasks] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    React.useEffect(() => {
+        const fetchTasks = async () => {
+            try {
+                const data = await taskService.getMyTasks();
+                setTasks(data);
+            } catch (error) {
+                console.error("Failed to fetch my tasks", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchTasks();
+    }, []);
+
+    if (loading) return <div className="p-4"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div>;
+
+    return (
+        <div className="mt-8">
+            <h3 className="text-xl font-bold mb-4 text-slate-800">My Recent Submissions</h3>
+            <div className="space-y-4">
+                {tasks.length === 0 ? (
+                    <p className="text-slate-500 italic">No tasks submitted yet.</p>
+                ) : (
+                    tasks.map((task) => (
+                        <Card key={task.id} className="card-enhanced border-l-4 border-l-blue-500">
+                            <CardContent className="p-4 flex justify-between items-center">
+                                <div>
+                                    <h4 className="font-bold text-slate-800">{task.title}</h4>
+                                    <p className="text-sm text-slate-500">
+                                        Bot: {task.assignedBotType || 'Manual'} | Risk: {task.riskLevel}
+                                    </p>
+                                </div>
+                                <div className={`px-3 py-1 rounded-full text-xs font-bold ${task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                    task.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                                        task.status === 'FAILED' ? 'bg-red-100 text-red-700' :
+                                            'bg-blue-100 text-blue-700'
+                                    }`}>
+                                    {task.status}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))
+                )}
+            </div>
+        </div>
+    );
+};
+
 const TaskSubmissionPage = () => {
     const { register, handleSubmit, setValue, watch, reset } = useForm();
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(null);
     const [aiAnalysis, setAiAnalysis] = useState(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const onSubmit = async (data) => {
         setLoading(true);
@@ -45,9 +98,25 @@ const TaskSubmissionPage = () => {
             }
 
             reset();
+            setRefreshTrigger(prev => prev + 1); // Refresh the list
         } catch (error) {
-            console.error(error);
-            setSuccess("Error submitting task. Please try again.");
+            console.error("Full error object:", error);
+            console.error("Error response:", error.response);
+
+            // Check token
+            const token = localStorage.getItem('token');
+            console.log("Token exists:", !!token);
+
+            // Better error messages
+            if (error.response?.status === 401) {
+                setSuccess("❌ Authentication failed. Please logout and login again.");
+            } else if (error.response?.status === 403) {
+                setSuccess("❌ You don't have permission to create tasks. Check your role.");
+            } else if (error.response?.data?.message) {
+                setSuccess("❌ Error: " + error.response.data.message);
+            } else {
+                setSuccess("❌ Error submitting task. Please try again.");
+            }
         } finally {
             setLoading(false);
         }
@@ -169,6 +238,9 @@ const TaskSubmissionPage = () => {
                             </form>
                         </CardContent>
                     </Card>
+
+                    {/* My Recent Tasks List */}
+                    <MyTaskList key={refreshTrigger} />
                 </div>
 
                 <div className="lg:col-span-2 space-y-6 slide-in-right">

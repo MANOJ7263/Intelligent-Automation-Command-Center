@@ -19,7 +19,6 @@ const Sidebar = () => {
 
         if (roles.includes('ROLE_COLLECTOR')) {
             items.push({ to: '/admin-dashboard', label: 'Command Center', icon: LayoutDashboard });
-            items.push({ to: '/departments', label: 'Departments', icon: ClipboardList });
         }
 
         if (roles.includes('ROLE_DEPT_HEAD')) {

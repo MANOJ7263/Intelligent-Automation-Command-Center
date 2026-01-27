@@ -66,7 +66,7 @@ function App() {
             <DashboardLayout>
               <div className="p-6">
                 <h2 className="text-2xl font-bold mb-6 text-slate-800">Staff Workspace</h2>
-                <TaskSubmissionForm />
+                <TaskSubmissionPage />
               </div>
             </DashboardLayout>
           </ProtectedRoute>

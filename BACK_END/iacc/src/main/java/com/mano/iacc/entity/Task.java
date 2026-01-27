@@ -53,7 +53,13 @@ public class Task {
     private String intentType; // REPORT_GENERATION, DATA_ENTRY, APPROVAL_WORKFLOW, etc.
 
     @Column(name = "uipath_job_key")
-    private String uipathJobKey; // Job ID from UiPath Orchestrator
+    private String uipathJobKey; // Job ID from UiPath Orchestrator (Legacy naming)
+
+    @Column(name = "release_key")
+    private String releaseKey;
+
+    @Column(name = "uipath_job_status")
+    private String uipathJobStatus;
 
     private LocalDateTime deadline;
 

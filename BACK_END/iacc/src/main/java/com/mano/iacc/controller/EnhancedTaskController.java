@@ -50,17 +50,79 @@ public class EnhancedTaskController {
     @PostMapping
     @PreAuthorize("hasAnyRole('ROLE_COLLECTOR', 'ROLE_DEPT_HEAD', 'ROLE_STAFF')")
     public ResponseEntity<?> createTask(@RequestBody Task task) {
+        log.info("=== CREATE TASK REQUEST RECEIVED ===");
+
+        try {
+            Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            log.info("Principal type: {}", principal.getClass().getName());
+            log.info("Principal value: {}", principal);
+
+            if (!(principal instanceof UserDetails)) {
+                log.error("Principal is not UserDetails! Type: {}", principal.getClass());
+                return ResponseEntity.status(401).body("Authentication failed - invalid principal");
+            }
+
+            UserDetails userDetails = (UserDetails) principal;
+            log.info("Authenticated user: {}", userDetails.getUsername());
+            log.info("User authorities: {}", userDetails.getAuthorities());
+
+            User currentUser = userRepository.findByUsername(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found: " + userDetails.getUsername()));
+
+            log.info("Found user in database: ID={}, Username={}, Role={}",
+                    currentUser.getId(), currentUser.getUsername(), currentUser.getRole());
+
+            task.setCreatedBy(currentUser);
+
+            // Use Enhanced AI Service
+            Task savedTask = enhancedTaskService.createTaskWithAI(task, currentUser.getUsername());
+
+            log.info("Task created by {}: {} (Intent: {}, Risk Score: {})",
+                    currentUser.getUsername(), savedTask.getTitle(), savedTask.getIntentType(),
+                    savedTask.getRiskScore());
+
+            return ResponseEntity.ok(savedTask);
+        } catch (Exception e) {
+            log.error("Error creating task", e);
+            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/decision")
+    @PreAuthorize("hasRole('ROLE_DEPT_HEAD')")
+    public ResponseEntity<?> approveTask(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String decision = payload.get("decision"); // "APPROVE" or "REJECT"
+        String reason = payload.get("reason");
+
+        return ResponseEntity.ok(enhancedTaskService.approveTask(id, decision, reason, userDetails.getUsername()));
+    }
+
+    @PostMapping("/{id}/escalate")
+    @PreAuthorize("hasRole('ROLE_COLLECTOR')")
+    public ResponseEntity<?> escalateTask(@PathVariable Long id) {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(enhancedTaskService.escalateTask(id, userDetails.getUsername()));
+    }
+
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('ROLE_STAFF')")
+    public ResponseEntity<?> getMyTasks() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         User currentUser = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
+        return ResponseEntity.ok(enhancedTaskService.getMyTasks(currentUser.getId()));
+    }
 
-        task.setCreatedBy(currentUser);
+    @GetMapping("/automation/status")
+    @PreAuthorize("hasAnyRole('ROLE_COLLECTOR', 'ROLE_DEPT_HEAD', 'ROLE_AUTO_SUPERVISOR')")
+    public ResponseEntity<List<Task>> getAutomationTasks() {
+        return ResponseEntity.ok(enhancedTaskService.getAutomationTasks());
+    }
 
-        // Use Enhanced AI Service
-        Task savedTask = enhancedTaskService.createTaskWithAI(task, currentUser.getUsername());
-
-        log.info("Task created by {}: {} (Intent: {}, Risk Score: {})",
-                currentUser.getUsername(), savedTask.getTitle(), savedTask.getIntentType(), savedTask.getRiskScore());
-
-        return ResponseEntity.ok(savedTask);
+    @PostMapping("/{id}/retry")
+    @PreAuthorize("hasAnyRole('ROLE_COLLECTOR', 'ROLE_GP_ADMIN', 'ROLE_AUTO_SUPERVISOR')")
+    public ResponseEntity<?> retryTask(@PathVariable Long id) {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(enhancedTaskService.retryTask(id, userDetails.getUsername()));
     }
 }

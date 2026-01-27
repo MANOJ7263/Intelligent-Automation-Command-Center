@@ -40,29 +40,34 @@ public class AuthController {
 
         @PostMapping("/signin")
         public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
+                System.out.println("DEBUG: Login attempt for user: " + loginRequest.getUsername());
+                try {
+                        Authentication authentication = authenticationManager.authenticate(
+                                        new UsernamePasswordAuthenticationToken(loginRequest.getUsername(),
+                                                        loginRequest.getPassword()));
 
-                Authentication authentication = authenticationManager.authenticate(
-                                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(),
-                                                loginRequest.getPassword()));
+                        System.out.println("DEBUG: Authentication successful for: " + loginRequest.getUsername());
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        String jwt = jwtUtils.generateJwtToken(authentication);
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                String jwt = jwtUtils.generateJwtToken(authentication);
+                        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+                        List<String> roles = userDetails.getAuthorities().stream()
+                                        .map(GrantedAuthority::getAuthority)
+                                        .collect(Collectors.toList());
 
-                UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-                List<String> roles = userDetails.getAuthorities().stream()
-                                .map(GrantedAuthority::getAuthority)
-                                .collect(Collectors.toList());
+                        User user = userRepository.findById(userDetails.getId()).orElse(new User());
 
-                // Fetch user again to get department if needed
-                User user = userRepository.findById(userDetails.getId()).orElse(new User());
-
-                // Returning JSON body explicitly
-                return ResponseEntity.ok(new JwtResponse(jwt,
-                                userDetails.getId(),
-                                userDetails.getUsername(),
-                                userDetails.getEmail(),
-                                roles,
-                                user.getDepartment()));
+                        return ResponseEntity.ok(new JwtResponse(jwt,
+                                        userDetails.getId(),
+                                        userDetails.getUsername(),
+                                        userDetails.getEmail(),
+                                        roles,
+                                        user.getDepartment()));
+                } catch (Exception e) {
+                        System.out.println("DEBUG: Authentication FAILED for: " + loginRequest.getUsername());
+                        e.printStackTrace(); // Print stack trace to log
+                        throw e;
+                }
         }
 
         @PostMapping("/signup")

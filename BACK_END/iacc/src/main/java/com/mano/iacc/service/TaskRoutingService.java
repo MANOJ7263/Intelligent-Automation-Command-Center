@@ -23,6 +23,7 @@ public class TaskRoutingService {
         if (description.contains("report") || description.contains("analytics")) {
             task.setAiClassification("Data Processing");
             task.setAssignedBotType("UiPath_Bot_01");
+            task.setReleaseKey("rt_512A1634BA1032862612977DE918BD4AF4E4C365C48D319A6383F49D0FBC49E6-1");
             task.setRiskLevel("LOW");
         } else if (description.contains("scholarship") || description.contains("grant")) {
             task.setAiClassification("Financial Aid");

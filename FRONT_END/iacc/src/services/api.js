@@ -43,6 +43,40 @@ export const taskService = {
     getAllTasks: async () => {
         const response = await api.get('/tasks');
         return response.data;
+    },
+    getMyTasks: async () => {
+        const response = await api.get('/tasks/my');
+        return response.data;
+    },
+    approveTask: async (id, decision, reason) => {
+        const response = await api.post(`/tasks/${id}/decision`, { decision, reason });
+        return response.data;
+    },
+    escalateTask: async (id) => {
+        const response = await api.post(`/tasks/${id}/escalate`);
+        return response.data;
+    },
+    getCollectorSummary: async () => {
+        const response = await api.get('/tasks/analytics');
+        return response.data;
+    },
+    downloadReport: async () => {
+        const response = await api.get('/reports/export/csv', { responseType: 'blob' });
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'tasks_report.csv');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    },
+    getAutomationStatus: async () => {
+        const response = await api.get('/tasks/automation/status');
+        return response.data;
+    },
+    retryTask: async (id) => {
+        const response = await api.post(`/tasks/${id}/retry`);
+        return response.data;
     }
 };
 

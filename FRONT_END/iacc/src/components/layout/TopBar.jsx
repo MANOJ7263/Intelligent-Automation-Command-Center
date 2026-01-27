@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Search, Menu } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const TopBar = () => {
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+    };
+
     return (
         <div style={{
             borderBottom: '1px solid var(--border)',
@@ -269,13 +278,15 @@ const TopBar = () => {
                                 Settings
                             </DropdownMenuItem>
                             <DropdownMenuSeparator style={{ margin: '0.5rem 0', background: 'var(--border)' }} />
-                            <DropdownMenuItem style={{
-                                padding: '0.625rem 0.75rem',
-                                borderRadius: '0.5rem',
-                                color: '#ef4444',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease'
-                            }}>
+                            <DropdownMenuItem
+                                onClick={handleLogout}
+                                style={{
+                                    padding: '0.625rem 0.75rem',
+                                    borderRadius: '0.5rem',
+                                    color: '#ef4444',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease'
+                                }}>
                                 Log out
                             </DropdownMenuItem>
                         </DropdownMenuContent>

@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Activity, Clock, CheckCircle, AlertTriangle, Terminal, TrendingUp, Zap, Shield } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { taskService } from '@/services/api';
+import { Activity, Clock, CheckCircle, AlertTriangle, Terminal, TrendingUp, Zap, Shield, Download } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const data = [
@@ -12,216 +14,151 @@ const data = [
     { name: '18:00', tasks: 20, automated: 18 },
 ];
 
+const HighRiskEscalation = () => {
+    const [tasks, setTasks] = useState([]);
+
+    const fetchTasks = async () => {
+        try {
+            const data = await taskService.getAllTasks();
+            setTasks(data.filter(t => t.riskLevel === 'HIGH' && t.status !== 'COMPLETED' && t.status !== 'ESCALATED'));
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    useEffect(() => { fetchTasks(); }, []);
+
+    const handleEscalate = async (id) => {
+        try {
+            await taskService.escalateTask(id);
+            fetchTasks();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    if (tasks.length === 0) return null;
+
+    return (
+        <div className="mt-8 slide-in-bottom">
+            <h3 className="text-xl font-bold mb-4 text-red-600 flex items-center gap-2">
+                <AlertTriangle className="h-6 w-6" /> High-Risk Escalation Center
+            </h3>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {tasks.map(task => (
+                    <Card key={task.id} className="border-red-200 bg-red-50/50">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base text-red-900">{task.title}</CardTitle>
+                            <CardDescription className="text-red-700 font-medium">{task.department}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-red-600 mb-4">{task.risk_reason || "Critical task requiring attention"}</p>
+                            <Button variant="destructive" size="sm" className="w-full" onClick={() => handleEscalate(task.id)}>
+                                🚨 Escalate & Force Automation
+                            </Button>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const DashboardPage = () => {
+    const [summary, setSummary] = useState({
+        totalTasks: 0,
+        pendingTasks: 0,
+        completedTasks: 0,
+        highRiskTasks: 0
+    });
+
+    const handleExport = async () => {
+        try {
+            await taskService.downloadReport();
+        } catch (error) {
+            console.error("Export failed", error);
+            alert("Failed to export report.");
+        }
+    };
+
+    useEffect(() => {
+        const fetchSummary = async () => {
+            try {
+                const data = await taskService.getCollectorSummary();
+                setSummary(data);
+            } catch (error) {
+                console.error("Failed to fetch summary", error);
+            }
+        };
+        fetchSummary();
+    }, []);
+
     const stats = [
-        {
-            title: "Active Tasks",
-            value: "24",
-            icon: Clock,
-            gradient: "from-blue-500 to-cyan-500",
-            desc: "+2 since last hour",
-            trend: "+12%"
-        },
-        {
-            title: "Automation Success",
-            value: "98.5%",
-            icon: CheckCircle,
-            gradient: "from-emerald-500 to-teal-500",
-            desc: "Best performance this week",
-            trend: "+5.2%"
-        },
-        {
-            title: "Risk Alerts",
-            value: "3",
-            icon: AlertTriangle,
-            gradient: "from-orange-500 to-red-500",
-            desc: "Requires attention",
-            trend: "-2"
-        },
-        {
-            title: "System Health",
-            value: "Optimal",
-            icon: Activity,
-            gradient: "from-purple-500 to-pink-500",
-            desc: "All systems operational",
-            trend: "100%"
-        },
+        { title: "Total Tasks", value: summary.totalTasks, icon: Activity, trend: "+12%", color: "text-blue-600", bg: "bg-blue-50" },
+        { title: "Completed", value: summary.completedTasks, icon: CheckCircle, trend: "+5%", color: "text-green-600", bg: "bg-green-50" },
+        { title: "High Risk", value: summary.highRiskTasks, icon: AlertTriangle, trend: "-2%", color: "text-red-600", bg: "bg-red-50" },
+        { title: "Pending", value: summary.pendingTasks, icon: Clock, trend: "+8%", color: "text-orange-600", bg: "bg-orange-50" },
     ];
 
     return (
-        <div className="space-y-8 p-1">
-            {/* Header Section */}
-            <div className="slide-in-bottom">
-                <div className="flex items-center justify-between mb-2">
-                    <div>
-                        <h1 className="text-4xl font-bold tracking-tight mb-2 text-gradient">
-                            Command Room
-                        </h1>
-                        <p className="text-lg" style={{ color: 'var(--muted-foreground)' }}>
-                            Real-time monitoring of District IACC operations
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="badge-glow" style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            padding: '0.5rem 1rem',
-                            borderRadius: '9999px',
-                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                            color: 'white',
-                            fontSize: '0.875rem',
-                            fontWeight: '600',
-                            boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3)'
-                        }}>
-                            <span style={{
-                                position: 'relative',
-                                display: 'flex',
-                                height: '8px',
-                                width: '8px',
-                                marginRight: '0.5rem'
-                            }}>
-                                <span className="pulse-dot" style={{
-                                    position: 'absolute',
-                                    display: 'inline-flex',
-                                    height: '100%',
-                                    width: '100%',
-                                    borderRadius: '9999px',
-                                    background: 'rgba(255, 255, 255, 0.75)',
-                                }}></span>
-                                <span style={{
-                                    position: 'relative',
-                                    display: 'inline-flex',
-                                    borderRadius: '9999px',
-                                    height: '8px',
-                                    width: '8px',
-                                    background: 'white'
-                                }}></span>
-                            </span>
-                            Live System
-                        </div>
-                    </div>
+        <div className="space-y-8 p-1 animate-in fade-in duration-700">
+            {/* Header */}
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-4xl font-bold tracking-tight mb-2 text-gradient">
+                        Collector Dashboard
+                    </h2>
+                    <p className="text-muted-foreground text-lg">
+                        Operational oversight and high-priority escalations.
+                    </p>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" className="gap-2" onClick={handleExport}>
+                        <Download className="h-4 w-4" /> Export Report
+                    </Button>
+                    <Button className="gap-2 bg-slate-900 hover:bg-slate-800">
+                        <Terminal className="h-4 w-4" /> System Console
+                    </Button>
                 </div>
             </div>
 
             {/* Stats Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                {stats.map((stat, index) => (
-                    <div
-                        key={stat.title}
-                        className="stagger-item stat-card card-enhanced hover-lift"
-                        style={{
-                            background: 'var(--card)',
-                            borderRadius: 'var(--radius)',
-                            border: '1px solid var(--border)',
-                            overflow: 'hidden',
-                            position: 'relative'
-                        }}
-                    >
-                        {/* Gradient Top Border */}
-                        <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            height: '4px',
-                            background: `linear-gradient(to right, ${stat.gradient.replace('from-', '#').replace(' to-', ', #').replace('-500', '')})`
-                        }}></div>
-
-                        <div style={{ padding: '1.5rem' }}>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                marginBottom: '1rem'
-                            }}>
-                                <p style={{
-                                    fontSize: '0.875rem',
-                                    fontWeight: '600',
-                                    color: 'var(--muted-foreground)',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.05em'
-                                }}>
-                                    {stat.title}
-                                </p>
-                                <div style={{
-                                    padding: '0.75rem',
-                                    borderRadius: '0.75rem',
-                                    background: `linear-gradient(135deg, ${stat.gradient.replace('from-', 'rgba(').replace(' to-', ', 0.1), rgba(').replace('-500', ', 0.05)')})`
-                                }}>
-                                    <stat.icon style={{
-                                        height: '1.5rem',
-                                        width: '1.5rem',
-                                        color: stat.gradient.includes('blue') ? '#3b82f6' :
-                                            stat.gradient.includes('emerald') ? '#10b981' :
-                                                stat.gradient.includes('orange') ? '#f59e0b' : '#a855f7'
-                                    }} />
-                                </div>
+                {stats.map((stat) => (
+                    <Card key={stat.title} className="card-enhanced hover-lift border-l-4" style={{ borderLeftColor: stat.color.replace('text-', '').replace('-600', '') }}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">
+                                {stat.title}
+                            </CardTitle>
+                            <div className={`p-2 rounded-full ${stat.bg}`}>
+                                <stat.icon className={`h-4 w-4 ${stat.color}`} />
                             </div>
-                            <div style={{ marginBottom: '0.5rem' }}>
-                                <div style={{
-                                    fontSize: '2.25rem',
-                                    fontWeight: '700',
-                                    lineHeight: '1',
-                                    marginBottom: '0.5rem'
-                                }}>
-                                    {stat.value}
-                                </div>
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    fontSize: '0.875rem'
-                                }}>
-                                    <span style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        padding: '0.125rem 0.5rem',
-                                        borderRadius: '9999px',
-                                        background: stat.trend.includes('-') ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                                        color: stat.trend.includes('-') ? '#ef4444' : '#10b981',
-                                        fontSize: '0.75rem',
-                                        fontWeight: '600'
-                                    }}>
-                                        <TrendingUp style={{ height: '0.75rem', width: '0.75rem', marginRight: '0.25rem' }} />
-                                        {stat.trend}
-                                    </span>
-                                    <span style={{ color: 'var(--muted-foreground)', fontSize: '0.75rem' }}>
-                                        {stat.desc}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stat.value}</div>
+                            <p className="text-xs text-muted-foreground">
+                                <span className={stat.trend.startsWith('+') ? 'text-green-600' : 'text-red-600'}>
+                                    {stat.trend}
+                                </span> from last month
+                            </p>
+                        </CardContent>
+                    </Card>
                 ))}
             </div>
+
+            <HighRiskEscalation />
 
             {/* Charts Section */}
             <div className="grid gap-6 lg:grid-cols-7">
                 {/* Main Chart */}
                 <div className="lg:col-span-4 slide-in-left">
-                    <div className="card-enhanced" style={{
-                        background: 'var(--card)',
-                        borderRadius: 'var(--radius)',
-                        border: '1px solid var(--border)',
-                        overflow: 'hidden'
-                    }}>
-                        <div style={{ padding: '1.5rem', paddingBottom: '1rem' }}>
-                            <div style={{ marginBottom: '1rem' }}>
-                                <h3 style={{
-                                    fontSize: '1.25rem',
-                                    fontWeight: '600',
-                                    marginBottom: '0.25rem'
-                                }}>
-                                    Productivity Trends
-                                </h3>
-                                <p style={{
-                                    fontSize: '0.875rem',
-                                    color: 'var(--muted-foreground)'
-                                }}>
-                                    Task Volume vs Automation (Today)
-                                </p>
-                            </div>
-                            <div className="chart-container" style={{ height: '320px', width: '100%' }}>
+                    <Card className="card-enhanced h-full">
+                        <CardHeader>
+                            <CardTitle>Productivity Trends</CardTitle>
+                            <CardDescription>Task Volume vs Automation (Today)</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="h-[320px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                         <defs>
@@ -235,167 +172,103 @@ const DashboardPage = () => {
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                        <XAxis
-                                            dataKey="name"
-                                            stroke="var(--muted-foreground)"
-                                            fontSize={12}
-                                            tickLine={false}
-                                            axisLine={false}
-                                        />
-                                        <YAxis
-                                            stroke="var(--muted-foreground)"
-                                            fontSize={12}
-                                            tickLine={false}
-                                            axisLine={false}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: 'var(--card)',
-                                                borderRadius: '0.75rem',
-                                                border: '1px solid var(--border)',
-                                                boxShadow: 'var(--shadow-lg)',
-                                                padding: '0.75rem'
-                                            }}
-                                        />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="tasks"
-                                            stroke="#667eea"
-                                            strokeWidth={2}
-                                            fillOpacity={1}
-                                            fill="url(#colorTasks)"
-                                            name="Total Tasks"
-                                        />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="automated"
-                                            stroke="#10b981"
-                                            strokeWidth={2}
-                                            fillOpacity={1}
-                                            fill="url(#colorAuto)"
-                                            name="Automated"
-                                        />
+                                        <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="var(--muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
+                                        <Tooltip contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '0.75rem', border: '1px solid var(--border)' }} />
+                                        <Area type="monotone" dataKey="tasks" stroke="#667eea" strokeWidth={2} fillOpacity={1} fill="url(#colorTasks)" name="Total Tasks" />
+                                        <Area type="monotone" dataKey="automated" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorAuto)" name="Automated" />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>
-                        </div>
-                    </div>
+                        </CardContent>
+                    </Card>
                 </div>
 
-                {/* Activity Feed */}
+                {/* Live Automation Monitor */}
                 <div className="lg:col-span-3 slide-in-right">
-                    <div className="card-enhanced" style={{
-                        background: 'var(--card)',
-                        borderRadius: 'var(--radius)',
-                        border: '1px solid var(--border)',
-                        height: '100%'
-                    }}>
-                        <div style={{ padding: '1.5rem', paddingBottom: '1rem' }}>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                marginBottom: '1rem'
-                            }}>
-                                <div style={{
-                                    padding: '0.5rem',
-                                    borderRadius: '0.5rem',
-                                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05))',
-                                    marginRight: '0.75rem'
-                                }}>
-                                    <Terminal style={{ height: '1.25rem', width: '1.25rem', color: '#6366f1' }} />
-                                </div>
-                                <div>
-                                    <h3 style={{ fontSize: '1.25rem', fontWeight: '600' }}>
-                                        Live System Logs
-                                    </h3>
-                                    <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>
-                                        Real-time orchestrator feed
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="enhanced-scrollbar" style={{
-                                maxHeight: '320px',
-                                overflowY: 'auto',
-                                paddingRight: '0.5rem'
-                            }}>
-                                {[
-                                    { bot: 'Bot_#4591', task: 'Invoice generation completed for Dept_Revenue', time: '12:31:05', status: 'success' },
-                                    { bot: 'Bot_#4592', task: 'Data validation in progress for Dept_Health', time: '12:32:05', status: 'progress' },
-                                    { bot: 'Bot_#4593', task: 'Report compilation completed for Dept_Education', time: '12:33:05', status: 'success' },
-                                    { bot: 'Bot_#4594', task: 'Error handling initiated for Dept_Transport', time: '12:34:05', status: 'error' },
-                                    { bot: 'Bot_#4595', task: 'Backup process completed successfully', time: '12:35:05', status: 'success' },
-                                ].map((log, i) => (
-                                    <div
-                                        key={i}
-                                        className="timeline-item"
-                                        style={{
-                                            marginBottom: '1rem',
-                                            padding: '1rem',
-                                            borderRadius: '0.5rem',
-                                            background: log.status === 'success' ? 'rgba(16, 185, 129, 0.05)' :
-                                                log.status === 'error' ? 'rgba(239, 68, 68, 0.05)' :
-                                                    'rgba(59, 130, 246, 0.05)',
-                                            border: '1px solid',
-                                            borderColor: log.status === 'success' ? 'rgba(16, 185, 129, 0.2)' :
-                                                log.status === 'error' ? 'rgba(239, 68, 68, 0.2)' :
-                                                    'rgba(59, 130, 246, 0.2)',
-                                            transition: 'all 0.3s ease'
-                                        }}
-                                    >
-                                        <div style={{
-                                            display: 'flex',
-                                            alignItems: 'flex-start',
-                                            justifyContent: 'space-between',
-                                            marginBottom: '0.5rem'
-                                        }}>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.5rem',
-                                                    marginBottom: '0.25rem'
-                                                }}>
-                                                    <span style={{
-                                                        fontSize: '0.875rem',
-                                                        fontWeight: '600',
-                                                        fontFamily: 'JetBrains Mono, monospace'
-                                                    }}>
-                                                        {log.bot}
-                                                    </span>
-                                                    <span style={{
-                                                        display: 'inline-block',
-                                                        width: '6px',
-                                                        height: '6px',
-                                                        borderRadius: '50%',
-                                                        background: log.status === 'success' ? '#10b981' :
-                                                            log.status === 'error' ? '#ef4444' : '#3b82f6'
-                                                    }}></span>
-                                                </div>
-                                                <p style={{
-                                                    fontSize: '0.8125rem',
-                                                    color: 'var(--muted-foreground)',
-                                                    lineHeight: '1.5'
-                                                }}>
-                                                    {log.task}
-                                                </p>
-                                            </div>
-                                            <span className="font-mono" style={{
-                                                fontSize: '0.75rem',
-                                                color: 'var(--muted-foreground)',
-                                                whiteSpace: 'nowrap',
-                                                marginLeft: '1rem'
-                                            }}>
-                                                {log.time}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                    <AutomationMonitor />
                 </div>
             </div>
         </div>
+    );
+};
+
+const AutomationMonitor = () => {
+    const [jobs, setJobs] = useState([]);
+
+    const fetchJobs = async () => {
+        try {
+            const data = await taskService.getAutomationStatus();
+            setJobs(data);
+        } catch (error) {
+            console.error("Failed to fetch automation status", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchJobs();
+        const interval = setInterval(fetchJobs, 10000); // Poll every 10s
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleRetry = async (id) => {
+        try {
+            await taskService.retryTask(id);
+            fetchJobs();
+        } catch (error) {
+            console.error("Retry failed", error);
+        }
+    };
+
+    return (
+        <Card className="card-enhanced h-full">
+            <CardHeader>
+                <div className="flex items-center gap-2">
+                    <Terminal className="h-5 w-5 text-indigo-500" />
+                    <div>
+                        <CardTitle>Live Automation Monitor</CardTitle>
+                        <CardDescription>Real-time UiPath Orchestrator Feed</CardDescription>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4 max-h-[320px] overflow-y-auto pr-2 enhanced-scrollbar">
+                    {jobs.length === 0 ? (
+                        <div className="text-center text-sm text-slate-500 py-8">No active automation jobs</div>
+                    ) : (
+                        jobs.map((job) => (
+                            <div key={job.id} className={`flex items-start justify-between p-3 rounded-lg border ${job.uipathJobStatus === 'Successful' ? 'bg-green-50/50 border-green-100' :
+                                    ['Faulted', 'Start Failed', 'FAILED'].includes(job.uipathJobStatus) ? 'bg-red-50/50 border-red-100' :
+                                        'bg-blue-50/50 border-blue-100'
+                                }`}>
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-mono font-bold text-slate-700">
+                                            {job.assignedBotType || "Unassigned Bot"}
+                                        </span>
+                                        <span className={`h-1.5 w-1.5 rounded-full ${job.uipathJobStatus === 'Successful' ? 'bg-green-500' :
+                                                ['Faulted', 'Start Failed', 'FAILED'].includes(job.uipathJobStatus) ? 'bg-red-500' : 'bg-blue-500 animate-pulse'
+                                            }`} />
+                                    </div>
+                                    <p className="text-xs text-slate-600 truncate max-w-[200px]" title={job.title}>{job.title}</p>
+                                    <p className="text-[10px] text-slate-400">Status: {job.uipathJobStatus || "Pending"}</p>
+                                </div>
+
+                                {['Faulted', 'Start Failed', 'FAILED'].includes(job.uipathJobStatus) ? (
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-100" onClick={() => handleRetry(job.id)} title="Retry Automation">
+                                        <Zap className="h-3 w-3" />
+                                    </Button>
+                                ) : (
+                                    <span className="text-[10px] font-mono text-slate-400">
+                                        {new Date(job.createdAt).toLocaleTimeString()}
+                                    </span>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     );
 };
 

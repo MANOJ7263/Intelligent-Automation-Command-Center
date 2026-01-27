@@ -94,4 +94,53 @@ public class TaskService {
             automationJobRepository.save(errorJob);
         }
     }
+
+    // --- New Operational Methods ---
+
+    @Transactional
+    public Task approveTask(Long taskId, String decision, String reason, String username) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        if ("APPROVE".equalsIgnoreCase(decision)) {
+            task.setStatus("APPROVED");
+            // Automatically trigger automation if applicable after approval
+            if (task.getAssignedBotType() != null && !task.getAssignedBotType().equals("Manual_Queue")) {
+                triggerAutomation(task);
+            }
+        } else {
+            task.setStatus("REJECTED");
+        }
+
+        // You might want to store approval details in AuditLog or Task fields
+        // task.setApprovedBy(username);
+        // task.setRejectionReason(reason);
+
+        return taskRepository.save(task);
+    }
+
+    @Transactional
+    public Task escalateTask(Long taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        task.setPriority("HIGH");
+        task.setRiskLevel("HIGH");
+        task.setStatus("ESCALATED");
+
+        return taskRepository.save(task);
+    }
+
+    public List<Task> getMyTasks(Long userId) {
+        return taskRepository.findByCreatedBy_Id(userId);
+    }
+
+    public java.util.Map<String, Object> getCollectorSummary() {
+        java.util.Map<String, Object> summary = new java.util.HashMap<>();
+        summary.put("totalTasks", taskRepository.count());
+        summary.put("pendingTasks", taskRepository.countByStatus("PENDING"));
+        summary.put("completedTasks", taskRepository.countByStatus("COMPLETED"));
+        summary.put("highRiskTasks", taskRepository.countByRiskLevel("HIGH"));
+        return summary;
+    }
 }

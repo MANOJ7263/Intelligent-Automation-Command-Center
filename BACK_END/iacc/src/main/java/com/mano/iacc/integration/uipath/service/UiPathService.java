@@ -17,39 +17,71 @@ public class UiPathService {
     @Autowired
     private TaskRepository taskRepository;
 
+    @Autowired
+    private UiPathJobService uiPathJobService;
+
     public void triggerBot(Task task) {
-        // Mocking Orchestrator API Call
-        logger.info("Calling UiPath Orchestrator for Task ID: {}", task.getId());
-        logger.info("Bot assigned: {}", task.getAssignedBotType());
-        logger.info("Payload sent to Bot: {}", task.getDescription());
-
-        // Simulate async bot execution status update
-        mockBotExecution(task);
-    }
-
-    private void mockBotExecution(Task task) {
-        // In a real scenario, this would be a webhook callback
-        // Here we just simulate immediate success/failure
-        logger.info("UiPath Bot Started Execution...");
-
-        try {
-            Thread.sleep(1000); // Simulate network latency
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        if (task.getReleaseKey() == null || task.getReleaseKey().isEmpty()) {
+            logger.warn("No Release Key found for Task ID: {}", task.getId());
+            return;
         }
 
-        // 90% Success Rate Mock
-        boolean success = new Random().nextInt(10) > 0;
+        logger.info("Triggering UiPath Bot for Task ID: {} with Release Key: {}", task.getId(), task.getReleaseKey());
 
-        if (success) {
-            task.setStatus("COMPLETED");
-            logger.info("UiPath Bot Execution SUCCESS. Task marked as COMPLETED.");
+        // Call Real UiPath Service
+        String jobKey = uiPathJobService.startJob(task.getReleaseKey());
+
+        if (jobKey != null) {
+            task.setUipathJobKey(jobKey);
+            task.setUipathJobStatus("Pending"); // Initial status
+            taskRepository.save(task);
+            logger.info("UiPath Job Started. Job Key: {}", jobKey);
         } else {
-            task.setStatus("FAILED");
-            logger.error("UiPath Bot Execution FAILED. Task marked as FAILED.");
+            logger.error("Failed to start UiPath Job for Task ID: {}", task.getId());
+            task.setUipathJobStatus("Start Failed");
+            taskRepository.save(task);
         }
-
-        // Save the updated status
-        taskRepository.save(task);
     }
+
+    // Poll for status updates (e.g., every 30 seconds)
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 30000)
+    public void updateJobStatuses() {
+        // Find tasks with running jobs
+        // This requires a custom query or filtering in memory.
+        // For efficiency, we should have a method findByUipathJobStatusIn(List<String>
+        // statuses)
+        // Assuming we fetch all for now or add the method to repository
+
+        // Let's filter in memory for simplicity if list is small, or just add the repo
+        // method later.
+        java.util.List<Task> tasks = taskRepository.findAll();
+
+        for (Task task : tasks) {
+            if (task.getUipathJobKey() != null &&
+                    !"Successful".equalsIgnoreCase(task.getUipathJobStatus()) &&
+                    !"Faulted".equalsIgnoreCase(task.getUipathJobStatus()) &&
+                    !"Stopped".equalsIgnoreCase(task.getUipathJobStatus())) {
+
+                String status = uiPathJobService.getJobStatus(task.getUipathJobKey());
+                if (!"Unknown".equals(status) && !status.equals(task.getUipathJobStatus())) {
+                    task.setUipathJobStatus(status);
+
+                    if ("Successful".equalsIgnoreCase(status)) {
+                        task.setStatus("COMPLETED");
+                    } else if ("Faulted".equalsIgnoreCase(status)) {
+                        task.setStatus("FAILED");
+                    }
+
+                    taskRepository.save(task);
+                    logger.info("Updated Task ID: {} Status to: {}", task.getId(), status);
+                }
+            }
+        }
+    }
+
+    /*
+     * private void mockBotExecution(Task task) {
+     * // ... Removed Mock Logic ...
+     * }
+     */
 }

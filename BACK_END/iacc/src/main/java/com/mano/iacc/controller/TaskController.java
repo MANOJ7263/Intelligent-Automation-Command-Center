@@ -30,6 +30,9 @@ public class TaskController {
     @Autowired
     TaskRoutingService taskRoutingService;
 
+    @Autowired
+    com.mano.iacc.service.TaskService taskService;
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ROLE_COLLECTOR', 'ROLE_DEPT_HEAD', 'ROLE_STAFF')")
     public List<Task> getAllTasks() {
