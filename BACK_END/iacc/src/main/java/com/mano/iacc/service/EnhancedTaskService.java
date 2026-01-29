@@ -2,10 +2,12 @@ package com.mano.iacc.service;
 
 import com.mano.iacc.entity.AutomationJob;
 import com.mano.iacc.entity.Task;
+import com.mano.iacc.entity.User;
 import com.mano.iacc.integration.uipath.service.UiPathJobService;
 import com.mano.iacc.repository.AutomationJobRepository;
 import com.mano.iacc.repository.TaskRepository;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,8 +18,9 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-@Slf4j
 public class EnhancedTaskService {
+
+    private static final Logger log = LoggerFactory.getLogger(EnhancedTaskService.class);
 
     private final TaskRepository taskRepository;
     private final PredictiveEngineService predictiveEngine;
@@ -150,13 +153,14 @@ public class EnhancedTaskService {
             task.setUipathJobKey(jobKey);
 
             // Log Automation Job
-            AutomationJob job = AutomationJob.builder()
-                    .task(task)
-                    .botId(jobKey)
-                    .status("RUNNING")
-                    .startTime(LocalDateTime.now())
-                    .logs("Job initiated via UiPath Orchestrator for " + task.getAssignedBotType())
-                    .build();
+            // Log Automation Job
+            AutomationJob job = new AutomationJob();
+            job.setTask(task);
+            job.setBotId(jobKey);
+            job.setStatus("RUNNING");
+            job.setStartTime(LocalDateTime.now());
+            job.setLogs("Job initiated via UiPath Orchestrator for " + task.getAssignedBotType());
+
             automationJobRepository.save(job);
 
             // Update Task Status
@@ -174,12 +178,12 @@ public class EnhancedTaskService {
         } catch (Exception e) {
             log.error("Failed to trigger automation for task: {}", task.getId(), e);
 
-            AutomationJob errorJob = AutomationJob.builder()
-                    .task(task)
-                    .status("FAILED")
-                    .startTime(LocalDateTime.now())
-                    .logs("Failed to start job: " + e.getMessage())
-                    .build();
+            AutomationJob errorJob = new AutomationJob();
+            errorJob.setTask(task);
+            errorJob.setStatus("FAILED");
+            errorJob.setStartTime(LocalDateTime.now());
+            errorJob.setLogs("Failed to start job: " + e.getMessage());
+
             automationJobRepository.save(errorJob);
         }
     }
@@ -286,5 +290,35 @@ public class EnhancedTaskService {
                 .sorted((t1, t2) -> t2.getCreatedAt().compareTo(t1.getCreatedAt()))
                 .limit(20) // Limit to last 20 for dashboard
                 .toList();
+    }
+    // --- Hierarchical Task Delegation ---
+
+    @Transactional
+    public Task delegateTaskToDept(Task task, String creatorUsername) {
+        task.setCreatedByAdmin(true);
+        task.setStatus("PENDING_DEPT_ASSIGNMENT");
+        task.setPriority("HIGH"); // Default high priority for admin tasks
+
+        // Save initially
+        Task savedTask = taskRepository.save(task);
+
+        auditService.logTaskCreation(savedTask.getId(), creatorUsername,
+                "Admin Delegated Task to Dept: " + task.getDepartment());
+
+        return savedTask;
+    }
+
+    @Transactional
+    public Task assignTaskToStaff(Long taskId, User staffMember, String deptHeadUsername) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        task.setAssignedToStaff(staffMember);
+        task.setStatus("PENDING_APPROVAL"); // Move to next stage
+
+        auditService.logTaskStatusChange(task.getId(), "PENDING_DEPT_ASSIGNMENT", "PENDING_APPROVAL",
+                deptHeadUsername, "Assigned to Staff: " + staffMember.getUsername());
+
+        return taskRepository.save(task);
     }
 }

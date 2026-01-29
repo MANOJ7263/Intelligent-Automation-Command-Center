@@ -19,6 +19,10 @@ const Sidebar = () => {
 
         if (roles.includes('ROLE_COLLECTOR')) {
             items.push({ to: '/admin-dashboard', label: 'Command Center', icon: LayoutDashboard });
+            items.push({ to: '/admin/departments', label: 'Departments', icon: ClipboardList });
+            items.push({ to: '/admin/assign-task', label: 'Assign Task', icon: FileText });
+            items.push({ to: '/admin/task-status', label: 'Task Status', icon: Activity });
+            items.push({ to: '/admin/profile', label: 'Admin Profile', icon: LayoutDashboard }); // Or UserIcon if available
         }
 
         if (roles.includes('ROLE_DEPT_HEAD')) {

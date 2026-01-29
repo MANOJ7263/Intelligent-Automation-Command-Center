@@ -4,7 +4,9 @@ import com.mano.iacc.entity.Task;
 import com.mano.iacc.entity.User;
 import com.mano.iacc.repository.UserRepository;
 import com.mano.iacc.service.EnhancedTaskService;
-import lombok.extern.slf4j.Slf4j;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,8 +20,9 @@ import java.util.Map;
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping("/api/tasks")
-@Slf4j
 public class EnhancedTaskController {
+
+    private static final Logger log = LoggerFactory.getLogger(EnhancedTaskController.class);
 
     @Autowired
     EnhancedTaskService enhancedTaskService;
@@ -124,5 +127,35 @@ public class EnhancedTaskController {
     public ResponseEntity<?> retryTask(@PathVariable Long id) {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(enhancedTaskService.retryTask(id, userDetails.getUsername()));
+    }
+    // --- Hierarchical Task Delegation Endpoints ---
+
+    @PostMapping("/delegate")
+    @PreAuthorize("hasRole('ROLE_COLLECTOR')")
+    public ResponseEntity<?> delegateTask(@RequestBody Task task) {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        // Ensure "department" is present in payload
+        if (task.getDepartment() == null || task.getDepartment().isEmpty()) {
+            return ResponseEntity.badRequest().body("Department is mandatory for delegation.");
+        }
+
+        Task savedTask = enhancedTaskService.delegateTaskToDept(task, userDetails.getUsername());
+        return ResponseEntity.ok(savedTask);
+    }
+
+    @PostMapping("/{id}/assign")
+    @PreAuthorize("hasRole('ROLE_DEPT_HEAD')")
+    public ResponseEntity<?> assignTaskToStaff(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String staffUsername = payload.get("staffUsername");
+
+        if (staffUsername == null) {
+            return ResponseEntity.badRequest().body("staffUsername is mandatory.");
+        }
+
+        User staff = userRepository.findByUsername(staffUsername)
+                .orElseThrow(() -> new RuntimeException("Staff user not found"));
+
+        return ResponseEntity.ok(enhancedTaskService.assignTaskToStaff(id, staff, userDetails.getUsername()));
     }
 }

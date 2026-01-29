@@ -34,13 +34,12 @@ public class DataInitializer {
     private void createUserIsNotExist(UserRepository repo, PasswordEncoder encoder, String username, String email,
             String role, String dept) {
         if (repo.findByUsername(username).isEmpty()) {
-            User user = User.builder()
-                    .username(username)
-                    .email(email)
-                    .passwordHash(encoder.encode("Test@1234"))
-                    .role(role)
-                    .department(dept)
-                    .build();
+            User user = new User();
+            user.setUsername(username);
+            user.setEmail(email);
+            user.setPasswordHash(encoder.encode("Test@1234"));
+            user.setRole(role);
+            user.setDepartment(dept);
             repo.save(user);
             System.out.println("USER SAVED SUCCESSFULLY: " + username);
         }

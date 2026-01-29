@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2, Lock, User, ArrowRight } from 'lucide-react';
 import './AuthPage.css';
 
-const LoginPage = () => {
+const LoginPage = ({ gateway, title }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -22,23 +22,27 @@ const LoginPage = () => {
         setError('');
 
         try {
-            // Real API Call
+            // Real API Call with Gateway Context
+            const payload = {
+                ...formData,
+                gateway: gateway || 'DEPT' // Default to Dept if not specified
+            };
+
             const response = await fetch('http://localhost:8081/api/auth/signin', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                // Attempt to parse JSON error if possible
                 try {
                     const errJson = JSON.parse(errorText);
                     throw new Error(errJson.message || 'Login failed.');
                 } catch (e) {
-                    console.error("Server Error:", errorText);
+                    // console.error("Server Error:", errorText);
                     throw new Error(errorText || 'Login failed. Please check your credentials.');
                 }
             }
@@ -60,20 +64,22 @@ const LoginPage = () => {
 
             // Role-Redirect Check
             const userRole = data.roles && data.roles.length > 0 ? data.roles[0] : '';
-            console.log("User Role:", userRole);
+            const dept = data.department ? data.department.toLowerCase() : 'general';
+
+            console.log("User Role:", userRole, "Dept:", dept);
 
             switch (userRole) {
                 case 'ROLE_COLLECTOR':
-                    navigate('/admin-dashboard');
+                    navigate('/dashboard/admin/central');
                     break;
                 case 'ROLE_DEPT_HEAD':
-                    navigate('/dept-dashboard');
+                    navigate(`/dashboard/${dept}/head`);
                     break;
                 case 'ROLE_STAFF':
-                    navigate('/staff-portal');
+                    navigate('/staff-portal'); // Could be /dashboard/${dept}/staff
                     break;
                 case 'ROLE_AUTO_SUPERVISOR':
-                    navigate('/dashboard');
+                    navigate('/active-monitoring');
                     break;
                 default:
                     console.warn("Unknown role, defaulting to dashboard:", userRole);
@@ -90,13 +96,17 @@ const LoginPage = () => {
 
     return (
         <div className="auth-page">
-            <div className="auth-blob-blue" />
+            <div className={`auth-blob-${gateway === 'ADMIN' ? 'red' : 'blue'}`} />
             <div className="auth-blob-purple" />
 
             <div className="auth-card">
                 <div className="auth-header">
-                    <h1 className="auth-title">Welcome Back</h1>
-                    <p className="auth-desc">Enter your credentials to access the command center</p>
+                    <h1 className="auth-title">{title || 'Welcome Back'}</h1>
+                    <p className="auth-desc">
+                        {gateway === 'ADMIN'
+                            ? 'Restricted Access: District Command Room'
+                            : 'Enter your credentials to access the department portal'}
+                    </p>
                 </div>
 
                 <div className="auth-content">
@@ -156,9 +166,17 @@ const LoginPage = () => {
 
                     <div className="auth-footer">
                         Don't have an account?{' '}
-                        <button onClick={() => navigate('/register')} className="link-primary">
-                            Register Department
-                        </button>
+                        {/* If in DEPT mode, show Register. If ADMIN, maybe hide it? 
+                            The prompt says "Register Department" leads to /dept/auth. 
+                            So if we are in /dept/auth, we should show register. */}
+                        {gateway !== 'ADMIN' && (
+                            <button onClick={() => navigate('/register')} className="link-primary">
+                                Register New Department ID
+                            </button>
+                        )}
+                        {gateway === 'ADMIN' && (
+                            <span className="text-sm text-gray-500">Restricted to Authorized Personnel</span>
+                        )}
                     </div>
                 </div>
             </div>

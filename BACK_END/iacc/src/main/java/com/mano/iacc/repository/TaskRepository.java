@@ -18,4 +18,12 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     long countByRiskLevel(String riskLevel);
 
     long countByDepartmentAndStatus(String department, String status);
+
+    List<Task> findByCreatedByAdminTrue();
+
+    // For Dept Head: Created by them OR (assigned by Admin AND in their dept)
+    // Note: This is simpler if we just fetch all tasks for department, which
+    // findByDepartment already does.
+    // But if we want specific logic:
+    // List<Task> findByDepartmentAndCreatedByAdminTrue(String department);
 }

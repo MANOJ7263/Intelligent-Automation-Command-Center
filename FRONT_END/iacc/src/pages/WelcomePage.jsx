@@ -32,7 +32,7 @@ const WelcomePage = () => {
 
                 <div className="action-buttons">
                     <button
-                        onClick={() => navigate('/login')}
+                        onClick={() => navigate('/admin/auth')}
                         className="btn-cta"
                     >
                         Access Command Room
@@ -40,7 +40,7 @@ const WelcomePage = () => {
                     </button>
 
                     <button
-                        onClick={() => navigate('/register')}
+                        onClick={() => navigate('/dept/auth')}
                         className="btn-outline-cta"
                     >
                         Register Department

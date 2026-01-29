@@ -70,13 +70,13 @@ public class TaskService {
             String jobKey = uiPathService.startJob(task.getAssignedBotType());
 
             // Log Job
-            AutomationJob job = AutomationJob.builder()
-                    .task(task)
-                    .botId(jobKey)
-                    .status("PENDING")
-                    .startTime(LocalDateTime.now())
-                    .logs("Job initiated via UiPath Orchestrator")
-                    .build();
+            // Log Job
+            AutomationJob job = new AutomationJob();
+            job.setTask(task);
+            job.setBotId(jobKey);
+            job.setStatus("PENDING");
+            job.setStartTime(LocalDateTime.now());
+            job.setLogs("Job initiated via UiPath Orchestrator");
 
             automationJobRepository.save(job);
 
@@ -85,12 +85,12 @@ public class TaskService {
             taskRepository.save(task);
 
         } catch (Exception e) {
-            AutomationJob errorJob = AutomationJob.builder()
-                    .task(task)
-                    .status("FAILED")
-                    .startTime(LocalDateTime.now())
-                    .logs("Failed to start job: " + e.getMessage())
-                    .build();
+            AutomationJob errorJob = new AutomationJob();
+            errorJob.setTask(task);
+            errorJob.setStatus("FAILED");
+            errorJob.setStartTime(LocalDateTime.now());
+            errorJob.setLogs("Failed to start job: " + e.getMessage());
+
             automationJobRepository.save(errorJob);
         }
     }

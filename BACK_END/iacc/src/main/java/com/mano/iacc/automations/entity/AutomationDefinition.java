@@ -22,7 +22,7 @@ public class AutomationDefinition {
     public void setId(Long id) {
         this.id = id;
     }
-
+// new line added
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }

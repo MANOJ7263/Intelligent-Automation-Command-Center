@@ -40,7 +40,9 @@ public class AuthController {
 
         @PostMapping("/signin")
         public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
-                System.out.println("DEBUG: Login attempt for user: " + loginRequest.getUsername());
+                System.out.println("DEBUG: Login attempt for user: " + loginRequest.getUsername() + " via gateway: "
+                                + loginRequest.getGateway());
+
                 try {
                         Authentication authentication = authenticationManager.authenticate(
                                         new UsernamePasswordAuthenticationToken(loginRequest.getUsername(),
@@ -48,12 +50,30 @@ public class AuthController {
 
                         System.out.println("DEBUG: Authentication successful for: " + loginRequest.getUsername());
                         SecurityContextHolder.getContext().setAuthentication(authentication);
-                        String jwt = jwtUtils.generateJwtToken(authentication);
 
                         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
                         List<String> roles = userDetails.getAuthorities().stream()
                                         .map(GrantedAuthority::getAuthority)
                                         .collect(Collectors.toList());
+
+                        // --- Dual Gateway Logic ---
+                        String gateway = loginRequest.getGateway();
+                        if ("ADMIN".equalsIgnoreCase(gateway)) {
+                                if (!roles.contains("ROLE_COLLECTOR")) {
+                                        System.out.println("WARN: Non-Admin user tried to access Admin Gateway");
+                                        return ResponseEntity.status(403)
+                                                        .body("Error: Admin Access Only. Please use Department Login.");
+                                }
+                        }
+                        // "DEPT" gateway logic (optional strictness, for now allow all valid users to
+                        // access Dept portal if they want,
+                        // OR restrict Admin from Dept portal if desired. The requirement only specifies
+                        // Admin protection).
+                        // Request says: "Logic: Allows ROLE_DEPT_HEAD, ROLE_STAFF,
+                        // ROLE_AUTO_SUPERVISOR."
+                        // Implicitly, usually Admin doesn't use this, but no strict ban requested.
+
+                        String jwt = jwtUtils.generateJwtToken(authentication);
 
                         User user = userRepository.findById(userDetails.getId()).orElse(new User());
 
@@ -65,7 +85,7 @@ public class AuthController {
                                         user.getDepartment()));
                 } catch (Exception e) {
                         System.out.println("DEBUG: Authentication FAILED for: " + loginRequest.getUsername());
-                        e.printStackTrace(); // Print stack trace to log
+                        // e.printStackTrace();
                         throw e;
                 }
         }
@@ -79,13 +99,13 @@ public class AuthController {
                 }
 
                 // Create new user object (password will be encoded in service)
-                User user = User.builder()
-                                .username(signUpRequest.getUsername())
-                                .email(signUpRequest.getEmail())
-                                .passwordHash(signUpRequest.getPassword()) // Service will encode this
-                                .role(signUpRequest.getRole())
-                                .department(signUpRequest.getDepartment())
-                                .build();
+                // Create new user object (password will be encoded in service)
+                User user = new User();
+                user.setUsername(signUpRequest.getUsername());
+                user.setEmail(signUpRequest.getEmail());
+                user.setPasswordHash(signUpRequest.getPassword());
+                user.setRole(signUpRequest.getRole());
+                user.setDepartment(signUpRequest.getDepartment());
 
                 // Use service to save and log
                 userService.createUser(user);

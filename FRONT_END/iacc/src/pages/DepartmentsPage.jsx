@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, Users, FileText, TrendingUp, ArrowRight, Loader2, X, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { taskService } from '@/services/api';
@@ -63,30 +64,30 @@ const DepartmentDetailModal = ({ department, onClose }) => {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-4 p-6 bg-gray-50 border-b">
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-4 p-6 bg-slate-50 border-b">
                     <div className="text-center">
-                        <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-                        <div className="text-xs text-gray-600 mt-1">Total Tasks</div>
+                        <div className="text-2xl font-bold text-slate-900">{stats.total}</div>
+                        <div className="text-xs text-slate-600 mt-1">Total Tasks</div>
                     </div>
                     <div className="text-center">
                         <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-                        <div className="text-xs text-gray-600 mt-1">Pending</div>
+                        <div className="text-xs text-slate-600 mt-1">Pending</div>
                     </div>
                     <div className="text-center">
                         <div className="text-2xl font-bold text-blue-600">{stats.approved}</div>
-                        <div className="text-xs text-gray-600 mt-1">Approved</div>
+                        <div className="text-xs text-slate-600 mt-1">Approved</div>
                     </div>
                     <div className="text-center">
                         <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-                        <div className="text-xs text-gray-600 mt-1">Completed</div>
+                        <div className="text-xs text-slate-600 mt-1">Completed</div>
                     </div>
                     <div className="text-center">
                         <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
-                        <div className="text-xs text-gray-600 mt-1">Rejected</div>
+                        <div className="text-xs text-slate-600 mt-1">Rejected</div>
                     </div>
                     <div className="text-center">
                         <div className="text-2xl font-bold text-orange-600">{stats.highRisk}</div>
-                        <div className="text-xs text-gray-600 mt-1">High Risk</div>
+                        <div className="text-xs text-slate-600 mt-1">High Risk</div>
                     </div>
                 </div>
 
@@ -97,8 +98,8 @@ const DepartmentDetailModal = ({ department, onClose }) => {
                             key={f}
                             onClick={() => setFilter(f)}
                             className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === f
-                                    ? 'bg-blue-600 text-white shadow-md'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                 }`}
                         >
                             {f}
@@ -113,8 +114,8 @@ const DepartmentDetailModal = ({ department, onClose }) => {
                             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                         </div>
                     ) : filteredTasks.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">
-                            <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                        <div className="text-center py-12 text-slate-500">
+                            <FileText className="h-12 w-12 mx-auto mb-3 text-slate-300" />
                             <p>No tasks found for this filter</p>
                         </div>
                     ) : (
@@ -132,38 +133,38 @@ const DepartmentDetailModal = ({ department, onClose }) => {
                             </TableHeader>
                             <TableBody>
                                 {filteredTasks.map((task) => (
-                                    <TableRow key={task.id} className="hover:bg-gray-50">
+                                    <TableRow key={task.id} className="hover:bg-slate-50">
                                         <TableCell className="font-mono text-sm">#{task.id}</TableCell>
                                         <TableCell className="font-medium max-w-xs truncate">{task.title}</TableCell>
                                         <TableCell>
                                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                                    task.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                                                        task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                                            'bg-yellow-100 text-yellow-700'
+                                                task.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                                    task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                                                        'bg-yellow-100 text-yellow-700'
                                                 }`}>
                                                 {task.status}
                                             </span>
                                         </TableCell>
                                         <TableCell>
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${task.priority === 'HIGH' ? 'bg-red-100 text-red-700' :
-                                                    task.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-green-100 text-green-700'
+                                                task.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                                                    'bg-green-100 text-green-700'
                                                 }`}>
                                                 {task.priority}
                                             </span>
                                         </TableCell>
                                         <TableCell>
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${task.riskLevel === 'HIGH' ? 'bg-red-100 text-red-700' :
-                                                    task.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-green-100 text-green-700'
+                                                task.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                                                    'bg-green-100 text-green-700'
                                                 }`}>
                                                 {task.riskLevel}
                                             </span>
                                         </TableCell>
-                                        <TableCell className="text-sm text-gray-600">
+                                        <TableCell className="text-sm text-slate-600">
                                             {task.assignedBotType || 'Manual'}
                                         </TableCell>
-                                        <TableCell className="text-sm text-gray-500">
+                                        <TableCell className="text-sm text-slate-500">
                                             {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : 'N/A'}
                                         </TableCell>
                                     </TableRow>
@@ -231,10 +232,60 @@ const DepartmentTaskQueue = () => {
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <h3 className="text-2xl font-bold">Task Approval Queue</h3>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-slate-600">
                     {pendingTasks.length} tasks pending review
                 </span>
             </div>
+
+            {/* Admin Delegated Tasks Section */}
+            {tasks.filter(t => t.status === 'PENDING_DEPT_ASSIGNMENT').length > 0 && (
+                <Card className="card-enhanced border-l-4 border-l-purple-500">
+                    <CardHeader>
+                        <CardTitle className="text-purple-700 flex items-center gap-2">
+                            <Clock className="h-5 w-5" /> Admin Delegated Tasks
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Title</TableHead>
+                                    <TableHead>Instructions</TableHead>
+                                    <TableHead>Action</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {tasks.filter(t => t.status === 'PENDING_DEPT_ASSIGNMENT').map(task => (
+                                    <TableRow key={task.id}>
+                                        <TableCell className="font-medium">{task.title}</TableCell>
+                                        <TableCell>{task.description}</TableCell>
+                                        <TableCell>
+                                            <Button
+                                                className="bg-purple-600 hover:bg-purple-700"
+                                                onClick={() => {
+                                                    const staffUsername = prompt("Enter Staff Username to Assign:");
+                                                    if (staffUsername) {
+                                                        // In a real app, use a modal with dropdown
+                                                        axios.post(`http://localhost:8080/api/tasks/${task.id}/assign`, { staffUsername }, {
+                                                            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                                                        }).then(() => {
+                                                            alert("Assigned!");
+                                                            fetchTasks();
+                                                        }).catch(err => alert("Failed: " + (err.response?.data?.message || err.message)));
+                                                    }
+                                                }}
+                                            >
+                                                Assign to Staff
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
+
             <Card className="card-enhanced">
                 <CardContent className="p-0">
                     <Table>
@@ -255,31 +306,31 @@ const DepartmentTaskQueue = () => {
                                 <TableRow>
                                     <TableCell colSpan={8} className="text-center py-12">
                                         <CheckCircle className="h-12 w-12 mx-auto mb-3 text-green-500" />
-                                        <p className="text-gray-600 font-medium">All caught up!</p>
-                                        <p className="text-sm text-gray-500 mt-1">No pending tasks require your approval</p>
+                                        <p className="text-slate-600 font-medium">All caught up!</p>
+                                        <p className="text-sm text-slate-500 mt-1">No pending tasks require your approval</p>
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 pendingTasks.map((task) => (
-                                    <TableRow key={task.id} className="hover:bg-gray-50">
+                                    <TableRow key={task.id} className="hover:bg-slate-50">
                                         <TableCell className="font-mono text-sm">#{task.id}</TableCell>
                                         <TableCell className="font-medium max-w-xs">
                                             <div className="truncate">{task.title}</div>
-                                            <div className="text-xs text-gray-500 mt-1 truncate">{task.description}</div>
+                                            <div className="text-xs text-slate-500 mt-1 truncate">{task.description}</div>
                                         </TableCell>
                                         <TableCell>{task.department}</TableCell>
                                         <TableCell>
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${task.priority === 'HIGH' ? 'bg-red-100 text-red-700' :
-                                                    task.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-green-100 text-green-700'
+                                                task.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                                                    'bg-green-100 text-green-700'
                                                 }`}>
                                                 {task.priority}
                                             </span>
                                         </TableCell>
                                         <TableCell>
                                             <span className={`px-2 py-1 rounded text-xs font-bold flex items-center gap-1 w-fit ${task.riskLevel === 'HIGH' ? 'bg-red-100 text-red-700' :
-                                                    task.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-green-100 text-green-700'
+                                                task.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                                                    'bg-green-100 text-green-700'
                                                 }`}>
                                                 {task.riskLevel === 'HIGH' && <AlertTriangle className="h-3 w-3" />}
                                                 {task.riskLevel}
@@ -325,11 +376,17 @@ const DepartmentTaskQueue = () => {
     );
 };
 
-// Main Departments Page
+// Main DepartmentsPage
 const DepartmentsPage = () => {
     const [selectedDepartment, setSelectedDepartment] = useState(null);
+    const [userDept, setUserDept] = useState(null);
 
-    const departments = [
+    useEffect(() => {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (user.department) setUserDept(user.department);
+    }, []);
+
+    const allDepartments = [
         { name: 'Revenue', staff: 45, tasks: 1250, efficiency: 94, color: 'blue' },
         { name: 'Health', staff: 62, tasks: 3400, efficiency: 98, color: 'emerald' },
         { name: 'Education', staff: 38, tasks: 890, efficiency: 88, color: 'amber' },
@@ -337,6 +394,15 @@ const DepartmentsPage = () => {
         { name: 'Transport', staff: 30, tasks: 670, efficiency: 85, color: 'cyan' },
         { name: 'Public Works', staff: 55, tasks: 1100, efficiency: 90, color: 'orange' },
     ];
+
+    // Filter departments: If user has a dept, only show that one. If Admin/Collector (who shouldn't be here typically but might), show all.
+    const departments = userDept
+        ? allDepartments.filter(d => d.name.toUpperCase() === userDept.toUpperCase())
+        : allDepartments;
+
+    const dynamicTitle = userDept
+        ? `${userDept} Command Center`
+        : "Department Head Dashboard";
 
     const getTheme = (color) => {
         const themes = {
@@ -353,9 +419,9 @@ const DepartmentsPage = () => {
     return (
         <div className="space-y-8 p-1 animate-in fade-in duration-700">
             <div className="flex flex-col gap-2">
-                <h2 className="text-responsive-xl text-gradient tracking-tight">Department Head Dashboard</h2>
+                <h2 className="text-responsive-xl text-gradient tracking-tight">{dynamicTitle}</h2>
                 <p className="text-muted-foreground text-lg max-w-2xl">
-                    Manage and approve tasks across all departments. Click on a department to view detailed analytics.
+                    Manage and approve tasks for {userDept || 'all departments'}. Click on a card for detailed analytics.
                 </p>
             </div>
 
