@@ -82,7 +82,8 @@ public class AuthController {
                                         userDetails.getUsername(),
                                         userDetails.getEmail(),
                                         roles,
-                                        user.getDepartment()));
+                                        user.getDepartment(),
+                                        user.getSubRole()));
                 } catch (Exception e) {
                         System.out.println("DEBUG: Authentication FAILED for: " + loginRequest.getUsername());
                         // e.printStackTrace();
@@ -104,8 +105,41 @@ public class AuthController {
                 user.setUsername(signUpRequest.getUsername());
                 user.setEmail(signUpRequest.getEmail());
                 user.setPasswordHash(signUpRequest.getPassword());
-                user.setRole(signUpRequest.getRole());
                 user.setDepartment(signUpRequest.getDepartment());
+                user.setSubRole(signUpRequest.getSubRole());
+
+                // Map subRole to Spring Security role if role not explicitly set
+                String role = signUpRequest.getRole();
+                if (role == null || role.isEmpty()) {
+                        String subRole = signUpRequest.getSubRole();
+                        if (subRole != null) {
+                                switch (subRole.toUpperCase()) {
+                                        case "CEO":
+                                        case "CMO":
+                                        case "CTO":
+                                        case "CFO":
+                                        case "CRO":
+                                                role = "ROLE_DEPT_HEAD";
+                                                break;
+                                        case "DEO":
+                                        case "DHO":
+                                        case "DTO":
+                                        case "DFO":
+                                        case "DRO":
+                                                role = "ROLE_DEPT_HEAD";
+                                                break;
+                                        case "AUTOMATION_SUPERVISOR":
+                                                role = "ROLE_AUTO_SUPERVISOR";
+                                                break;
+                                        default:
+                                                role = "ROLE_STAFF";
+                                                break;
+                                }
+                        } else {
+                                role = "ROLE_STAFF";
+                        }
+                }
+                user.setRole(role);
 
                 // Use service to save and log
                 userService.createUser(user);

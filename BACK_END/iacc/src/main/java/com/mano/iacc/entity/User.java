@@ -23,9 +23,13 @@ public class User {
     private String email;
 
     @Column(nullable = false)
-    private String role; // COLLECTOR, DEPT_HEAD, STAFF, AUTO_SUPERVISOR
+    private String role; // ROLE_COLLECTOR, ROLE_DEPT_HEAD, ROLE_STAFF, ROLE_AUTO_SUPERVISOR
 
-    private String department; // Nullable for Collector/SuperAdmin
+    private String department; // EDUCATION, HEALTH, TRANSPORT, FINANCE, REVENUE
+
+    @Column(name = "sub_role")
+    private String subRole; // Department-specific: CEO, DEO, HEADMASTER, STUDENT (Education); CMO, DHO,
+                            // HOSPITAL_WARDEN (Health); etc.
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -76,6 +80,14 @@ public class User {
 
     public void setDepartment(String department) {
         this.department = department;
+    }
+
+    public String getSubRole() {
+        return subRole;
+    }
+
+    public void setSubRole(String subRole) {
+        this.subRole = subRole;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -11,15 +11,18 @@ public class JwtResponse {
     private String email;
     private List<String> roles;
     private String department;
+    private String subRole; // e.g., CEO, DEO, HEADMASTER, CMO, DHO, etc.
 
     // Constructor
-    public JwtResponse(String token, Long id, String username, String email, List<String> roles, String department) {
+    public JwtResponse(String token, Long id, String username, String email, List<String> roles, String department,
+            String subRole) {
         this.token = token;
         this.id = id;
         this.username = username;
         this.email = email;
         this.roles = roles;
         this.department = department;
+        this.subRole = subRole;
     }
 
     // Getters and Setters
@@ -69,5 +72,13 @@ public class JwtResponse {
 
     public void setDepartment(String department) {
         this.department = department;
+    }
+
+    public String getSubRole() {
+        return subRole;
+    }
+
+    public void setSubRole(String subRole) {
+        this.subRole = subRole;
     }
 }

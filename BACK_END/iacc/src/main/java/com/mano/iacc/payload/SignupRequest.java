@@ -6,6 +6,7 @@ public class SignupRequest {
     private String role;
     private String password;
     private String department;
+    private String subRole; // Department-specific role: CEO, DEO, HEADMASTER, CMO, DHO, etc.
 
     public String getUsername() {
         return username;
@@ -45,5 +46,13 @@ public class SignupRequest {
 
     public void setDepartment(String department) {
         this.department = department;
+    }
+
+    public String getSubRole() {
+        return subRole;
+    }
+
+    public void setSubRole(String subRole) {
+        this.subRole = subRole;
     }
 }

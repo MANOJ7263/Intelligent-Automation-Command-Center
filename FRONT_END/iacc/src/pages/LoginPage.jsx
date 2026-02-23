@@ -22,17 +22,14 @@ const LoginPage = ({ gateway, title }) => {
         setError('');
 
         try {
-            // Real API Call with Gateway Context
             const payload = {
                 ...formData,
-                gateway: gateway || 'DEPT' // Default to Dept if not specified
+                gateway: gateway || 'DEPT'
             };
 
             const response = await fetch('http://localhost:8081/api/auth/signin', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
 
@@ -41,8 +38,7 @@ const LoginPage = ({ gateway, title }) => {
                 try {
                     const errJson = JSON.parse(errorText);
                     throw new Error(errJson.message || 'Login failed.');
-                } catch (e) {
-                    // console.error("Server Error:", errorText);
+                } catch {
                     throw new Error(errorText || 'Login failed. Please check your credentials.');
                 }
             }
@@ -51,8 +47,7 @@ const LoginPage = ({ gateway, title }) => {
             let data;
             try {
                 data = JSON.parse(textData);
-            } catch (e) {
-                console.error("JSON Parse Error. Raw text:", textData);
+            } catch {
                 throw new Error("Invalid response from server");
             }
 
@@ -62,27 +57,39 @@ const LoginPage = ({ gateway, title }) => {
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data));
 
-            // Role-Redirect Check
             const userRole = data.roles && data.roles.length > 0 ? data.roles[0] : '';
             const dept = data.department ? data.department.toLowerCase() : 'general';
+            const subRole = data.subRole ? data.subRole.toLowerCase() : '';
 
-            console.log("User Role:", userRole, "Dept:", dept);
+            console.log("User Role:", userRole, "Dept:", dept, "SubRole:", subRole);
 
+            // ── Routing Logic ─────────────────────────────────────────────────
+            if (userRole === 'ROLE_COLLECTOR') {
+                navigate('/dashboard/admin/central');
+                return;
+            }
+
+            if (userRole === 'ROLE_AUTO_SUPERVISOR') {
+                navigate(`/dashboard/${dept}/automation-supervisor`);
+                return;
+            }
+
+            // Department sub-role routing (covers ROLE_DEPT_HEAD and ROLE_STAFF)
+            if (dept && subRole) {
+                navigate(`/dashboard/${dept}/${subRole.replace(/_/g, '-')}`);
+                return;
+            }
+
+            // Generic fallbacks
             switch (userRole) {
-                case 'ROLE_COLLECTOR':
-                    navigate('/dashboard/admin/central');
-                    break;
                 case 'ROLE_DEPT_HEAD':
                     navigate(`/dashboard/${dept}/head`);
                     break;
                 case 'ROLE_STAFF':
-                    navigate('/staff-portal'); // Could be /dashboard/${dept}/staff
-                    break;
-                case 'ROLE_AUTO_SUPERVISOR':
-                    navigate('/active-monitoring');
+                    navigate('/staff-portal');
                     break;
                 default:
-                    console.warn("Unknown role, defaulting to dashboard:", userRole);
+                    console.warn("Unknown role, defaulting:", userRole);
                     navigate('/dashboard');
             }
 
@@ -112,13 +119,13 @@ const LoginPage = ({ gateway, title }) => {
                 <div className="auth-content">
                     <form onSubmit={handleLogin}>
                         <div className="form-group">
-                            <label htmlFor="username" className="label">Username</label>
+                            <label htmlFor="login-username" className="label">Username</label>
                             <div className="input-wrapper">
                                 <User className="input-icon" />
                                 <input
-                                    id="username"
+                                    id="login-username"
                                     name="username"
-                                    placeholder="e.g., district_collector"
+                                    placeholder="e.g., ceo_education"
                                     className="input-field"
                                     value={formData.username}
                                     onChange={handleChange}
@@ -129,13 +136,13 @@ const LoginPage = ({ gateway, title }) => {
 
                         <div className="form-group">
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <label htmlFor="password" className="label">Password</label>
+                                <label htmlFor="login-password" className="label">Password</label>
                                 <a href="#" style={{ fontSize: '0.75rem', color: '#2563eb', textDecoration: 'none' }}>Forgot password?</a>
                             </div>
                             <div className="input-wrapper">
                                 <Lock className="input-icon" />
                                 <input
-                                    id="password"
+                                    id="login-password"
                                     name="password"
                                     type="password"
                                     className="input-field"
@@ -165,17 +172,18 @@ const LoginPage = ({ gateway, title }) => {
                     </form>
 
                     <div className="auth-footer">
-                        Don't have an account?{' '}
-                        {/* If in DEPT mode, show Register. If ADMIN, maybe hide it? 
-                            The prompt says "Register Department" leads to /dept/auth. 
-                            So if we are in /dept/auth, we should show register. */}
                         {gateway !== 'ADMIN' && (
-                            <button onClick={() => navigate('/register')} className="link-primary">
-                                Register New Department ID
-                            </button>
+                            <>
+                                Don't have an account?{' '}
+                                <button onClick={() => navigate('/register')} className="link-primary">
+                                    Register Now
+                                </button>
+                            </>
                         )}
                         {gateway === 'ADMIN' && (
-                            <span className="text-sm text-gray-500">Restricted to Authorized Personnel</span>
+                            <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                                Restricted to Authorized Personnel Only
+                            </span>
                         )}
                     </div>
                 </div>
